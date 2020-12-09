@@ -10,9 +10,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", api.Index)
-	http.HandleFunc("/fork", api.Fork)
-	http.HandleFunc("/message", api.Message)
-	http.HandleFunc("/queue", api.Queue)
+	http.HandleFunc("/m", api.Messaging)
 	fmt.Printf("Starting server at port 8080\n")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

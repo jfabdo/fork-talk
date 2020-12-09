@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/mediocregopher/radix/v3"
 )
@@ -37,10 +38,6 @@ func getClient() *radix.Pool {
 
 //doing it like this so that when Redis is implemented in a bit I don't have to change a lot of code
 func pushToQueue(topic string, message map[string]string) {
-	// err := rdb.Set(topic, message, 0).Err() //set key to ????, and set value to message
-	// if err != nil {
-	// 	panic(err)
-	// }
 	var structmsg indmessage
 	var rdb = getClient()
 	structmsg.Msg = message["message"]
@@ -51,13 +48,8 @@ func pushToQueue(topic string, message map[string]string) {
 	if err != nil {
 		//stuff
 	}
-	// println(rdb.NumAvailConns())
-	rdb.Do(radix.Cmd(nil, "publish", channel+structmsg.UN, string(tryme))) //, //string(tryme)))
-	rdb.Do(radix.Cmd(nil, "lpush", channel+structmsg.UN, string(tryme)))
-	// print("CAUGHT THIS")
-	// println(stuf)
-	// println("End catch")
-	// println()
+	rdb.Do(radix.Cmd(nil, "publish", topic+channel+structmsg.UN, string(tryme))) //, //string(tryme)))
+	rdb.Do(radix.Cmd(nil, "lpush", topic+channel+structmsg.UN, string(tryme)))
 }
 
 //Index handles messages going to the index
@@ -70,8 +62,8 @@ func Index(w http.ResponseWriter, r *http.Request) {
 
 }
 
-//Fork puts a message on the fork queue
-func Fork(w http.ResponseWriter, r *http.Request) {
+//Messaging handles all messaging requests, pushing them to either fork, message, or
+func Messaging(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method is not supported.", http.StatusNotFound)
 		return
@@ -82,37 +74,6 @@ func Fork(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	pushToQueue("fork", msg)
-}
 
-//Message puts a message on the message queue
-func Message(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method is not supported.", http.StatusNotFound)
-		return
-	}
-	var msg map[string]string
-	err := json.NewDecoder(r.Body).Decode(&msg)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-	// println(msg["name"])
-	pushToQueue("message", msg)
-}
-
-//Queue returns the value of the queues
-func Queue(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method is not supported.", http.StatusNotFound)
-		return
-	}
-	var msg map[string]string
-	err := json.NewDecoder(r.Body).Decode(&msg)
-	if err != nil {
-		http.Error(w, err.Error(), 400)
-		return
-	}
-	var rdb = getClient()
-	rdb.Do(radix.Cmd(nil, "get", channel+msg["name"]))
+	pushToQueue(strings.Split(r.URL.Path, "/")[2], msg)
 }
