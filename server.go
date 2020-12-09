@@ -10,7 +10,7 @@ import (
 
 func main() {
 	http.HandleFunc("/", api.Index)
-	http.HandleFunc("/m", api.Messaging)
+	// http.HandleFunc("", api.Messaging)
 	fmt.Printf("Starting server at port 8080\n")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

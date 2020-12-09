@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -30,29 +29,28 @@ func getClient() *radix.Pool {
 }
 
 // CheckMessages checks the incoming list of messages and makes sure that
-func CheckMessages(w http.ResponseWriter, messages map[string]string) {
+func CheckMessages(w http.ResponseWriter, usermap map[string]string) {
 	var rdb = getClient()
 
-	// var messagedict map[string]string
-	var messagelist []string
-	err := rdb.Do(radix.Cmd(&messagelist, "lrange", "chat"+"message"+channel+messages["name"], "0", "10"))
+	var canonicallist []string
+	err := rdb.Do(radix.Cmd(&canonicallist, "lrange", "chat"+"message"+channel+usermap["name"], "0", "10"))
 	if err != nil {
 		println(err)
 		panic(err)
 	}
-	for i := range messages {
-		for j := range messagelist {
-			if messages[i] == messagelist[j] {
-				copy(messagelist[j:], messagelist[j+1:])
-				messagelist = messagelist[:len(messagelist)-1]
-			}
+	print(canonicallist)
+	for i := range canonicallist {
+		println(canonicallist)
+		if usermap[canonicallist[i]] == "" {
+			fmt.Fprintf(w, canonicallist[i])
+
 		}
 	}
 
-	rspns, err := json.Marshal(&messagelist)
-	if err != nil {
-		//do somethign
-	}
+	// rspns, err := json.Marshal(&messagelist)
+	// if err != nil {
+	// 	//do somethign
+	// }
 
-	fmt.Fprintf(w, string(rspns))
+	// fmt.Fprintf(w, string(rspns))
 }
