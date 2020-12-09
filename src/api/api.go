@@ -3,20 +3,22 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/mediocregopher/radix/v3"
 )
 
+var channel = "0000000000001"
+
 type indmessage struct {
-	un  string
-	msg string
+	UN  string
+	Msg string
+	To  string
 	// time    time.Time
 }
 
 type tryme struct {
-	Stuff []indmessage
+	Stuff indmessage
 }
 
 var ctx = context.Background()
@@ -26,14 +28,12 @@ var q = map[string][]indmessage{
 	"fork":    make([]indmessage, 1000)}
 
 func getClient() *radix.Pool {
-	pool, err := radix.NewPool("tcp", "127.0.0.1:6379", 10)
+	pool, err := radix.NewPool("tcp", "localhost:6379", 10)
 	if err != nil {
 		// handle error
 	}
 	return pool
 }
-
-var rdb = getClient()
 
 //doing it like this so that when Redis is implemented in a bit I don't have to change a lot of code
 func pushToQueue(topic string, message map[string]string) {
@@ -42,11 +42,22 @@ func pushToQueue(topic string, message map[string]string) {
 	// 	panic(err)
 	// }
 	var structmsg indmessage
+	var rdb = getClient()
+	structmsg.Msg = message["message"]
+	structmsg.UN = message["name"]
+	structmsg.To = message["for"]
 
-	structmsg.msg = message["message"]
-	structmsg.un = message["name"]
-
-	q[topic] = append(q[topic], structmsg)
+	tryme, err := json.Marshal(structmsg)
+	if err != nil {
+		//stuff
+	}
+	// println(rdb.NumAvailConns())
+	rdb.Do(radix.Cmd(nil, "publish", channel+structmsg.UN, string(tryme))) //, //string(tryme)))
+	rdb.Do(radix.Cmd(nil, "lpush", channel+structmsg.UN, string(tryme)))
+	// print("CAUGHT THIS")
+	// println(stuf)
+	// println("End catch")
+	// println()
 }
 
 //Index handles messages going to the index
@@ -92,25 +103,16 @@ func Message(w http.ResponseWriter, r *http.Request) {
 
 //Queue returns the value of the queues
 func Queue(w http.ResponseWriter, r *http.Request) {
-	// var things tryme
-	// things.Stuff = q["un"]
-	// r, err := json.Marshal(things)
-	// if err != nil {
-	// 	http.Error(w, "Method is not supported.", http.StatusNotFound)
-	// 	return
-	// }
-	for i := 0; i < len(q); i++ {
-		r, err := json.Marshal(q["message"])
-		if err != nil {
-			http.Error(w, "Fuck", http.StatusNotFound)
-		}
-		s, err := json.Marshal(q["message"])
-		if err != nil {
-			http.Error(w, "Fuck", http.StatusNotFound)
-		}
-		io.WriteString(w, string(r))
-		io.WriteString(w, string(s))
+	if r.Method != "POST" {
+		http.Error(w, "Method is not supported.", http.StatusNotFound)
+		return
 	}
-
-	// return q
+	var msg map[string]string
+	err := json.NewDecoder(r.Body).Decode(&msg)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	var rdb = getClient()
+	rdb.Do(radix.Cmd(nil, "get", channel+msg["name"]))
 }
