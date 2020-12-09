@@ -19,7 +19,7 @@ func asSha256(o interface{}) string {
 }
 
 func getClient() *radix.Pool {
-	pool, err := radix.NewPool("tcp", "localhost:6379", 10)
+	pool, err := radix.NewPool("tcp", "172.17.0.1:6379", 10)
 	if err != nil {
 		println(err)
 		panic(err)
